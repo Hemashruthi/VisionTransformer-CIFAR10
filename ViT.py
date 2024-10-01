@@ -174,6 +174,18 @@ vit = VisionTransformer(img_size, patch_size, in_channels, num_classes, embed_di
 x = torch.randn(32, 3, 32, 32)  # (batch_size, channels, height, width)
 output = vit(x)
 print(output.shape)  # (Batch_size , num_classes)
+
+transform = transforms.Compose([
+    transforms.Resize((32, 32)),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+])
+
+train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+test_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=2)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=2)
     
 # if __name__ == "__main__":
 
