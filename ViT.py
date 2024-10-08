@@ -15,31 +15,19 @@ class PatchEmbedding(nn.Module):
         self.proj = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
 
     def forward(self, x):
-        #print(f"Input shape: {x.shape}")
         x = self.proj(x)
-        #print(f"After projection: {x.shape}") # (batch_size, embed_dim, num_patches^(1/2), num_patches^(1/2))
         x = x.flatten(2)
-        #print(f"After flattening: {x.shape}") # (batch_size, embed_dim, num_patches)
         x = x.transpose(1, 2)  # (batch_size, num_patches, embed_dim)
-        #print(f"After transposing: {x.shape}")
         return x
-    
+
 # 2. Utility function to calculate positional embeddings
 def get_positional_embeddings(num_patches, embed_dim):
-    #print(f"Generating positional embeddings for {num_patches} patches and {embed_dim} dimensions.")
     result = torch.ones(num_patches, embed_dim)
     for i in range(num_patches):
         for j in range(embed_dim):
             result[i][j] = np.sin(i / (10000 ** (j / embed_dim))) if j % 2 == 0 else np.cos(i / (10000 ** ((j - 1) / embed_dim)))
-    print(f"Positional embeddings shape: {result.shape}")
     return result
 
-if __name__ == "__main__":
-
-  plt.imshow(get_positional_embeddings(100, 300), interpolation="nearest")
-  plt.show()
-
-  
 # Multi-Head Attention Class
 class Attention(nn.Module):
     def __init__(self, embed_dim, num_heads):
@@ -48,7 +36,7 @@ class Attention(nn.Module):
         self.head_dim = embed_dim // num_heads
         self.scale = self.head_dim ** -0.5
 
-         # Linear layers for projecting the input to queries, keys, and values
+        # Linear layers for projecting the input to queries, keys, and values
         self.q_proj = nn.Linear(embed_dim, embed_dim)
         self.k_proj = nn.Linear(embed_dim, embed_dim)
         self.v_proj = nn.Linear(embed_dim, embed_dim)
@@ -56,7 +44,6 @@ class Attention(nn.Module):
 
     def forward(self, x):
         B, N, E = x.shape
-        #print(f"Input to attention: {x.shape}")
         Q = self.q_proj(x)  # (B, N, E)
         K = self.k_proj(x)
         V = self.v_proj(x)
@@ -65,33 +52,19 @@ class Attention(nn.Module):
         Q = Q.view(B, N, self.num_heads, self.head_dim).transpose(1, 2)  # (B, num_heads, N, head_dim)
         K = K.view(B, N, self.num_heads, self.head_dim).transpose(1, 2)
         V = V.view(B, N, self.num_heads, self.head_dim).transpose(1, 2)
-        #print(f"Q shape: {Q.shape}, K shape: {K.shape}, V shape: {V.shape}")
 
         # Scale and compute attention weights
         Q = Q * self.scale
         attn_scores = torch.matmul(Q, K.transpose(-2, -1))  # Attention scores
         attn_weights = torch.softmax(attn_scores, dim=-1)
-        
-        #print(f"Attention scores shape: {attn_scores.shape}")  # Print attention scores shape
-        #print(f"Attention weights shape: {attn_weights.shape}")  # Print attention weights shape
 
         # Apply attention weights to the values
         attn_output = torch.matmul(attn_weights, V)  # (B, num_heads, N, head_dim)
         attn_output = attn_output.transpose(1, 2).reshape(B, N, E)
-
-        print(f"Attention output shape: {attn_output.shape}")
         output = self.fc(attn_output)
         return output
-    
-# Example usage:
-embed_dim = 128
-num_heads = 8
-x = torch.randn(32, 10, embed_dim)  # Example input: (batch_size, sequence_length, embedding_dim)
-attention_layer = Attention(embed_dim, num_heads)
-output = attention_layer(x)
-print(output.shape)
-    
-# 4. Multi - layer Perception 
+
+# Feed Forward Network
 class FeedForward(nn.Module):
     def __init__(self, embed_dim, hidden_dim, dropout=0.1):
         super(FeedForward, self).__init__()
@@ -106,8 +79,8 @@ class FeedForward(nn.Module):
         x = self.dropout(x)
         x = self.fc2(x)
         return x
-    
-# 5. Transformer Encoder Layers   
+
+# Transformer Encoder Layer   
 class TransformerEncoderLayer(nn.Module):
     def __init__(self, embed_dim, num_heads, hidden_dim, dropout=0.1):
         super(TransformerEncoderLayer, self).__init__()
@@ -119,17 +92,13 @@ class TransformerEncoderLayer(nn.Module):
         self.dropout2 = nn.Dropout(dropout)
 
     def forward(self, x):
-        # Multi-head attention & skip connection
         attn_output = self.attn(self.norm1(x))
         x = x + self.dropout1(attn_output)
-
-        # MLP with skip connection
         hidden_output = self.hidden(self.norm2(x))
         x = x + self.dropout2(hidden_output)
-
         return x
-    
-# 6. Transformer Encoder
+
+# Transformer Encoder
 class TransformerEncoder(nn.Module):
     def __init__(self, embed_dim, num_heads, hidden_dim, num_layers, dropout=0.1):
         super(TransformerEncoder, self).__init__()
@@ -141,21 +110,16 @@ class TransformerEncoder(nn.Module):
         for layer in self.layers:
             x = layer(x)
         return x
-    
-encoder = TransformerEncoder(embed_dim = 128, num_heads = 8, hidden_dim = 32, num_layers = 4, dropout = 0.1)
-x = torch.randn(32, 16, 128)
-output = encoder(x)
-print(output.shape)
 
-# 7. Vision Transforms
+# Vision Transformer
 class VisionTransformer(nn.Module):
     def __init__(self, img_size, patch_size, in_channels, num_classes, embed_dim, num_heads, hidden_dim, num_layers, dropout=0.1):
         super(VisionTransformer, self).__init__()
         self.patch_embed = PatchEmbedding(img_size, patch_size, in_channels, embed_dim)
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim)) #CLS token
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim)) # CLS token
         self.pos_embed = nn.Parameter(get_positional_embeddings((img_size // patch_size) ** 2 + 1, embed_dim))
         self.dropout = nn.Dropout(dropout)
-        self.encoder = TransformerEncoder(embed_dim, num_heads, hidden_dim, num_layers, dropout )
+        self.encoder = TransformerEncoder(embed_dim, num_heads, hidden_dim, num_layers, dropout)
         self.mlp_head = nn.Sequential(
             nn.LayerNorm(embed_dim),
             nn.Linear(embed_dim, num_classes)
@@ -163,110 +127,18 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x):
         B = x.shape[0] #num of images in a batch
-        x = self.patch_embed(x) # (B, num_patches + 1, embed_dim)
+        x = self.patch_embed(x)  # (B, num_patches + 1, embed_dim)
         cls_tokens = self.cls_token.expand(B, -1, -1)
         x = torch.cat((cls_tokens, x), dim=1)
         x = x + self.pos_embed
         x = self.dropout(x)
-        x = self.encoder(x) # output x = (B , num_patches + 1, new_embed_dim)
-        cls_output = x[:, 0] # class token from the encoded x
+        x = self.encoder(x)  # output x = (B , num_patches + 1, new_embed_dim)
+        cls_output = x[:, 0]  # class token from the encoded x
         output = self.mlp_head(cls_output)
         return output
-    
-img_size = 32
-patch_size = 4
-in_channels = 3
-num_classes = 10
-embed_dim = 128
-num_heads = 4
-hidden_dim = 32
-num_layers = 4
-dropout = 0.1
-
-vit = VisionTransformer(img_size, patch_size, in_channels, num_classes, embed_dim, num_heads, hidden_dim, num_layers, dropout)
-x = torch.randn(32, 3, 32, 32)  # (batch_size, channels, height, width)
-output = vit(x)
-print(output.shape)  # (Batch_size , num_classes)
-
-
-
-transform = transforms.Compose([
-    transforms.Resize((32, 32)),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-])
-
-train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-test_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
-
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=2)
-test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=2)
 
 # Function to display images with labels in a grid
-def imshow_grid(images, labels):
-    fig, axs = plt.subplots(8, 8, figsize=(12, 12))  # Create a figure and axes
-    axs = axs.flatten()  # Flatten axes for easy iteration
-
-    for i in range(64):
-        img = images[i] / 2 + 0.5  # Unnormalize the image
-        img = img.numpy()  # Convert image to numpy array
-        img = np.transpose(img, (1, 2, 0))  # Transpose dimensions for correct display
-        axs[i].imshow(img)  # Display the image
-        axs[i].set_title(test_dataset.classes[labels[i]])  # Set title as class label
-        axs[i].axis('off')  # Turn off axis
-
-    plt.tight_layout()  # Adjust layout for better spacing
-    plt.show()  # Show the plot
-
-# Get a batch of 64 test images and labels
-images, labels = next(iter(test_loader))
-
-# Show images with labels in an 8x8 grid
-imshow_grid(images, labels)
-
-
-model = VisionTransformer(
-    img_size=32,
-    patch_size=4,
-    in_channels=3,
-    num_classes=10,
-    embed_dim=128,
-    num_heads=4,
-    hidden_dim=32,
-    num_layers=4,
-    dropout=0.1
-)
-
-# Loss function and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-num_epochs = 10
-for epoch in range(1, num_epochs + 1):
-    model.train()
-    running_loss = 0.0
-    for batch_idx, (inputs, targets) in enumerate(train_loader, 1):
-        outputs = model(inputs)
-        loss = criterion(outputs, targets)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        running_loss += loss.item()
-    print(f'Epoch [{epoch}/{num_epochs}], Loss: {running_loss / len(train_loader):.4f}')
-
-model.eval()
-correct = 0
-total = 0
-with torch.no_grad():
-    for inputs, targets in test_loader:
-        outputs = model(inputs)
-        _, predicted = torch.max(outputs.data, 1)
-        total += targets.size(0)
-        correct += (predicted == targets).sum().item()
-
-print(f'Accuracy on the test set: {(100 * correct / total):.2f}%')
-    
-def imshow_grid(images, labels, predicted_labels):
+def imshow_grid(images, labels, predicted_labels=None):
     fig, axs = plt.subplots(8, 8, figsize=(12, 12))
     axs = axs.flatten()
 
@@ -274,18 +146,80 @@ def imshow_grid(images, labels, predicted_labels):
         img = images[i] / 2 + 0.5
         img = img.numpy()
         img = np.transpose(img, (1, 2, 0))
+        if predicted_labels is None:
+            axs[i].set_title(f'Label: {test_dataset.classes[labels[i]]}')
+        else:
+            axs[i].set_title(f'Label: {test_dataset.classes[labels[i]]}\nPrediction: {test_dataset.classes[predicted_labels[i]]}')
         axs[i].imshow(img)
-        axs[i].set_title(f'Label: {test_dataset.classes[labels[i]]}\nPrediction: {test_dataset.classes[predicted_labels[i]]}')
         axs[i].axis('off')
 
     plt.tight_layout()
     plt.show()
 
-images, labels = next(iter(test_loader))
+if __name__ == '__main__':
+    # Dataset and DataLoader
+    transform = transforms.Compose([
+        transforms.Resize((32, 32)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    ])
 
-model.eval()
-with torch.no_grad():
-    outputs = model(images)
-    _, predicted = torch.max(outputs, 1)
+    train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+    test_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
 
-imshow_grid(images, labels, predicted)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=2)
+    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=2)
+
+    # Vision Transformer model
+    model = VisionTransformer(
+        img_size=32,
+        patch_size=4,
+        in_channels=3,
+        num_classes=10,
+        embed_dim=128,
+        num_heads=4,
+        hidden_dim=32,
+        num_layers=4,
+        dropout=0.1
+    )
+
+    # Loss function and optimizer
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    # Training loop
+    num_epochs = 10
+    for epoch in range(1, num_epochs + 1):
+        model.train()
+        running_loss = 0.0
+        for batch_idx, (inputs, targets) in enumerate(train_loader, 1):
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
+        print(f'Epoch [{epoch}/{num_epochs}], Loss: {running_loss / len(train_loader):.4f}')
+
+    # Testing loop
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for inputs, targets in test_loader:
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+            total += targets.size(0)
+            correct += (predicted == targets).sum().item()
+
+    print(f'Accuracy on the test set: {(100 * correct / total):.2f}%')
+
+    # Display images and predictions
+    images, labels = next(iter(test_loader))
+
+    model.eval()
+    with torch.no_grad():
+        outputs = model(images)
+        _, predicted = torch.max(outputs, 1)
+
+    imshow_grid(images, labels, predicted)
