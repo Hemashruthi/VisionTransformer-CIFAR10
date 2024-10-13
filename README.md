@@ -10,6 +10,8 @@ This project implements a **Vision Transformer (ViT)** model for image classific
 - Train and evaluate the model on the **CIFAR-10 dataset**, which consists of 60,000 images from 10 distinct classes.
 - Demonstrate the performance of transformers in computer vision tasks.
 - Provide visualization of test images alongside their predicted and true labels.
+  
+Note: You may not see significant improvements when using the Vision Transformer on smaller datasets, compared to traditional CNNs, due to its higher capacity and reliance on large-scale training data.
 
 ## **Introduction to Vision Transformers**
 
@@ -69,6 +71,11 @@ pip install -r requirements.txt
 
 - Experiment with different hyperparameters to optimize performance.
 - Visualize attention maps to better understand which patches the model focuses on during classification.
+
+## **References**
+
+- Dosovitskiy, A., et al. (2020). An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale. arXiv preprint arXiv:2010.11929.
+- Vaswani, A., et al. (2017). Attention Is All You Need. Advances in Neural Information Processing Systems, 30.
 
 ---
 
